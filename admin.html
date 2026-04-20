@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>幹事管理</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+:root {
+  --navy: #1b2a4a; --navy2: #243660; --gold: #d4900a; --gold-lt: #f5c040;
+  --cream: #faf7f2; --white: #fff; --border: #dde4ee; --gray: #8899aa;
+  --green: #1e8a50; --red: #c0392b; --text: #1e2a3a;
+  --shadow: 0 2px 12px rgba(27,42,74,0.10);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans JP', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; padding-bottom: 60px; }
+
+#login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px 24px; }
+.login-logo { font-size: 48px; margin-bottom: 12px; }
+.login-title { font-size: 22px; font-weight: 900; color: var(--navy); margin-bottom: 4px; }
+.login-sub { font-size: 13px; color: var(--gray); margin-bottom: 28px; }
+.login-card { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 100%; max-width: 360px; box-shadow: var(--shadow); }
+.login-card label { display: block; font-size: 12px; font-weight: 700; color: var(--gray); letter-spacing: 0.06em; margin-bottom: 6px; }
+.login-card input { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 12px; font-size: 16px; font-family: 'Noto Sans JP', sans-serif; outline: none; margin-bottom: 14px; }
+.login-card input:focus { border-color: var(--navy); }
+.login-btn { width: 100%; padding: 14px; background: var(--navy); color: var(--white); border: none; border-radius: 8px; font-family: 'Noto Sans JP', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; }
+.login-err { color: var(--red); font-size: 13px; margin-bottom: 10px; display: none; }
+
+#admin-screen { display: none; }
+.header { background: var(--navy); color: #fff; padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; }
+.header-left h1 { font-size: 18px; font-weight: 900; }
+.header-left .sub { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+.logout-btn { background: rgba(255,255,255,0.15); color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-family: 'Noto Sans JP', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+.tabs { display: flex; background: var(--white); border-bottom: 2px solid var(--border); }
+.tab { flex: 1; padding: 12px 4px; text-align: center; font-size: 12px; font-weight: 700; color: var(--gray); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+.tab.active { color: var(--navy); border-bottom-color: var(--navy); }
+.tab-content { display: none; padding: 16px; }
+.tab-content.active { display: block; }
+
+.card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 18px 16px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.card-title { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; font-weight: 700; color: var(--gray); letter-spacing: 0.06em; margin-bottom: 5px; }
+.form-row input[type="text"], .form-row input[type="date"], .form-row input[type="number"] {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px;
+  font-size: 15px; font-family: 'Noto Sans JP', sans-serif; color: var(--text); outline: none; background: var(--cream);
+}
+.form-row input:focus { border-color: var(--navy); background: var(--white); }
+.price-row { display: flex; gap: 10px; }
+.price-row .form-row { flex: 1; }
+
+/* 画像アップロードUI */
+.img-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative;
+  background: var(--cream);
+}
+.img-upload-area:hover { border-color: var(--navy); background: #f0f4ff; }
+.img-upload-area.has-image { border-style: solid; border-color: var(--green); padding: 0; overflow: hidden; }
+.img-upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.img-upload-icon { font-size: 32px; margin-bottom: 8px; }
+.img-upload-text { font-size: 13px; font-weight: 700; color: var(--gray); }
+.img-upload-sub { font-size: 11px; color: var(--gray); margin-top: 4px; }
+#img-preview { width: 100%; max-height: 260px; object-fit: contain; background: #f0f0f0; border-radius: 8px; display: none; }
+.img-clear-btn { display: none; position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer; z-index: 1; }
+.img-size-note { font-size: 11px; color: var(--green); margin-top: 6px; display: none; }
+
+.btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-family: 'Noto Sans JP', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; margin-bottom: 8px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--green); color: #fff; }
+.btn-navy { background: var(--navy); color: #fff; }
+.btn-gold { background: var(--gold); color: #fff; }
+.btn-outline { background: var(--white); color: var(--navy); border: 2px solid var(--navy) !important; }
+
+.url-box { background: var(--cream); border: 1.5px solid var(--border); border-radius: 8px; padding: 12px; font-size: 13px; color: var(--navy); word-break: break-all; margin-bottom: 10px; font-weight: 500; }
+
+.event-list-item { background: var(--white); border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+.event-list-item:hover, .event-list-item.active { border-color: var(--navy); }
+.event-list-item.active { background: #f0f4ff; }
+.eli-date { font-size: 13px; font-weight: 700; color: var(--navy); }
+.eli-title { font-size: 15px; font-weight: 700; margin-top: 2px; }
+.eli-meta { font-size: 11px; color: var(--gray); margin-top: 3px; }
+
+.agg-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.agg-row:last-child { border-bottom: none; }
+.agg-label { color: var(--gray); font-weight: 500; }
+.agg-val { font-weight: 700; color: var(--navy); }
+.agg-total-row { background: var(--navy); color: var(--gold-lt); border-radius: 8px; padding: 12px 14px; display: flex; justify-content: space-between; margin-top: 10px; font-weight: 900; font-size: 16px; }
+
+@media print {
+  body { height: auto !important; overflow: visible !important; }
+  body > *:not(#print-area) { display: none !important; }
+  #print-area { display: block !important; position: static; width: 100%; padding: 20px; }
+}
+#print-area { display: none; }
+.print-title { font-size: 20px; font-weight: 900; color: var(--navy); margin-bottom: 4px; }
+.print-date { font-size: 14px; color: var(--gray); margin-bottom: 16px; }
+.print-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.print-table th { background: var(--navy); color: #fff; padding: 8px 10px; text-align: left; font-size: 12px; }
+.print-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.print-table tr:nth-child(even) td { background: var(--cream); }
+.print-total-row td { font-weight: 900; background: #f0f4ff !important; }
+
+.loading { text-align: center; padding: 40px 20px; color: var(--gray); }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--navy); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.info-msg { background: #e8f4ff; border: 1px solid #b8d8f8; border-radius: 8px; padding: 12px; font-size: 13px; color: #1a5080; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-logo">⚾</div>
+  <div class="login-title">幹事管理画面</div>
+  <div class="login-sub">弁当発注システム</div>
+  <div class="login-card">
+    <div class="login-err" id="login-err">パスワードが違います</div>
+    <label>パスワード</label>
+    <input type="password" id="pw-input" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">ログイン</button>
+  </div>
+</div>
+
+<div id="admin-screen">
+  <div class="header">
+    <div class="header-left">
+      <h1>⚾ 幹事管理</h1>
+      <div class="sub">弁当発注システム</div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">ログアウト</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('create')">試合作成</div>
+    <div class="tab" onclick="switchTab('manage')">集計・PDF</div>
+  </div>
+
+  <div class="tab-content active" id="tab-create">
+    <div class="card">
+      <div class="card-title">📅 新しい試合を作成</div>
+      <div class="form-row"><label>イベント名</label><input type="text" id="ev-title" placeholder="例：4/20 春季大会 vs ○○チーム"></div>
+      <div class="form-row"><label>試合日</label><input type="date" id="ev-date"></div>
+      <div class="form-row"><label>発注先・弁当名</label><input type="text" id="ev-vendor" placeholder="例：○○弁当 唐揚げ弁当"></div>
+      <div class="price-row">
+        <div class="form-row"><label>並 価格（円）</label><input type="number" id="price-normal" placeholder="600" min="0"></div>
+        <div class="form-row"><label>大盛 価格（円）</label><input type="number" id="price-large" placeholder="750" min="0"></div>
+      </div>
+
+      <!-- 画像アップロード -->
+      <div class="form-row">
+        <label>弁当の画像（任意）</label>
+        <div class="img-upload-area" id="img-upload-area">
+          <input type="file" id="img-file-input" accept="image/*">
+          <div id="img-placeholder">
+            <div class="img-upload-icon">🍱</div>
+            <div class="img-upload-text">タップして画像を選択</div>
+            <div class="img-upload-sub">JPG・PNG・HEIC対応 / 自動でリサイズされます</div>
+          </div>
+          <img id="img-preview" alt="弁当画像プレビュー">
+          <button class="img-clear-btn" id="img-clear-btn" onclick="clearImage(event)">✕ 削除</button>
+        </div>
+        <div class="img-size-note" id="img-size-note"></div>
+      </div>
+
+      <button class="btn btn-primary" id="create-btn" onclick="createBentoEvent()">✅ 試合を作成してURLを発行</button>
+      <button class="btn btn-outline" onclick="resetForm()">🔄 入力内容をリセット</button>
+    </div>
+
+    <div id="url-result" style="display:none">
+      <div class="card">
+        <div class="card-title">🔗 共有URL</div>
+        <div class="info-msg">保護者にこのURLをLINEで共有してください</div>
+        <div style="margin-bottom:8px"><strong style="font-size:12px;color:var(--gray);">注文フォーム（保護者向け）</strong></div>
+        <div class="url-box" id="share-url-order"></div>
+        <button class="btn btn-navy" onclick="copyUrl('order')">📋 注文URLをコピー</button>
+        <div style="margin-top:12px;margin-bottom:8px"><strong style="font-size:12px;color:var(--gray);">注文一覧（全員閲覧用）</strong></div>
+        <div class="url-box" id="share-url-list"></div>
+        <button class="btn btn-outline" onclick="copyUrl('list')">📋 一覧URLをコピー</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-manage">
+    <div class="card">
+      <div class="card-title">📅 試合を選択</div>
+      <div id="event-list-loading" class="loading"><div class="spinner"></div></div>
+      <div id="event-list"></div>
+    </div>
+    <div id="aggregate-section" style="display:none">
+      <div class="card">
+        <div class="card-title">📊 集計</div>
+        <div id="agg-content"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔗 注文URL</div>
+        <div style="font-size:12px;font-weight:700;color:var(--gray);margin-bottom:6px;">保護者向け注文フォーム</div>
+        <div class="url-box" id="manage-url-order"></div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button class="btn btn-navy" style="margin-bottom:0" onclick="copyManageUrl('order')">📋 コピー</button>
+          <button class="btn btn-outline" style="margin-bottom:0" onclick="openManageUrl('order')">↗ 開く</button>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:var(--gray);margin-bottom:6px;">注文一覧</div>
+        <div class="url-box" id="manage-url-list"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-navy" style="margin-bottom:0" onclick="copyManageUrl('list')">📋 コピー</button>
+          <button class="btn btn-outline" style="margin-bottom:0" onclick="openManageUrl('list')">↗ 開く</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📄 出力</div>
+        <div class="info-msg">「PDF印刷」ボタンを押すとブラウザの印刷ダイアログが開きます。「PDFとして保存」を選択してください。</div>
+        <button class="btn btn-gold" onclick="printPDF()">🖨️ PDF印刷</button>
+        <button class="btn btn-primary" onclick="downloadCSV()">📥 CSVダウンロード</button>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--red)">🗑️ 試合を削除</div>
+        <p style="font-size:13px;color:var(--gray);margin-bottom:12px;">この試合と注文データをすべて削除します。この操作は取り消せません。</p>
+        <button class="btn" style="background:var(--red);color:#fff;" onclick="deleteEvent()">この試合を削除する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="print-area"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, get, push, serverTimestamp, remove }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ======================================================
+// ★ Firebase設定・パスワード（common.jsと同じ値を入れてください）
+// ======================================================
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB12L3oAwAzfb252QW1DlQBHg1XFSBFOpA",
+  authDomain: "baseball-luch.firebaseapp.com",
+  databaseURL: "https://baseball-luch-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "baseball-luch",
+  storageBucket: "baseball-luch.firebasestorage.app",
+  messagingSenderId: "1043312857891",
+  appId: "1:1043312857891:web:e4bf231fc8b14808d77296"
+};
+const ADMIN_PASSWORD = "sayama26"; // ← ★ここを自分のパスワードに変更★
+
+// ======================================================
+// 共通ユーティリティ
+// ======================================================
+function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const week = ["日","月","火","水","木","金","土"];
+  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${week[d.getDay()]}）`;
+}
+function sizeLabel(size) {
+  const map = { normal: "並", large: "大盛", none: "不要" };
+  return map[size] || size;
+}
+function saveLastEventId(id) { localStorage.setItem("bento_last_event", id); }
+
+const app = initializeApp(FIREBASE_CONFIG);
+const db = getDatabase(app);
+
+let selectedEventId = null;
+let selectedEvent = null;
+let pendingImageBase64 = null; // リサイズ済みBase64
+
+// ========== ログイン ==========
+window.doLogin = function() {
+  if (document.getElementById("pw-input").value === ADMIN_PASSWORD) {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("admin-screen").style.display = "block";
+    loadEventList();
+  } else {
+    document.getElementById("login-err").style.display = "block";
+  }
+};
+window.doLogout = function() {
+  document.getElementById("admin-screen").style.display = "none";
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("pw-input").value = "";
+};
+
+// ========== タブ ==========
+window.switchTab = function(tab) {
+  document.querySelectorAll(".tab").forEach((t,i) => t.classList.toggle("active", ["create","manage"][i] === tab));
+  document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+  document.getElementById(`tab-${tab}`).classList.add("active");
+  if (tab === "manage") loadEventList();
+};
+
+// ========== 画像処理 ==========
+document.getElementById("img-file-input").addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  resizeImage(file, 800, 0.82).then(base64 => {
+    pendingImageBase64 = base64;
+    const preview = document.getElementById("img-preview");
+    preview.src = base64;
+    preview.style.display = "block";
+    document.getElementById("img-placeholder").style.display = "none";
+    document.getElementById("img-clear-btn").style.display = "block";
+    document.getElementById("img-upload-area").classList.add("has-image");
+    // サイズ表示
+    const kb = Math.round(base64.length * 0.75 / 1024);
+    const note = document.getElementById("img-size-note");
+    note.textContent = `✅ 圧縮後サイズ：約${kb}KB`;
+    note.style.display = "block";
+  });
+});
+
+window.clearImage = function(e) {
+  e.stopPropagation();
+  pendingImageBase64 = null;
+  document.getElementById("img-preview").style.display = "none";
+  document.getElementById("img-placeholder").style.display = "block";
+  document.getElementById("img-clear-btn").style.display = "none";
+  document.getElementById("img-upload-area").classList.remove("has-image");
+  document.getElementById("img-size-note").style.display = "none";
+  document.getElementById("img-file-input").value = "";
+};
+
+// Canvas でリサイズ → Base64(JPEG)　※アスペクト比は必ず維持
+function resizeImage(file, maxPx, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.naturalWidth;
+      let h = img.naturalHeight;
+      // 長辺がmaxPxを超える場合のみ縮小（短辺は比率に従う）
+      if (w > maxPx || h > maxPx) {
+        const ratio = Math.min(maxPx / w, maxPx / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// フォームリセット
+window.resetForm = function() {
+  if (!confirm("入力内容をすべてリセットしますか？")) return;
+  document.getElementById("ev-title").value = "";
+  document.getElementById("ev-date").value = "";
+  document.getElementById("ev-vendor").value = "";
+  document.getElementById("price-normal").value = "";
+  document.getElementById("price-large").value = "";
+  clearImage({ stopPropagation: () => {} });
+  document.getElementById("url-result").style.display = "none";
+  document.getElementById("create-btn").disabled = false;
+  document.getElementById("create-btn").textContent = "✅ 試合を作成してURLを発行";
+};
+
+// ========== イベント作成 ==========
+window.createBentoEvent = async function() {
+  const title  = document.getElementById("ev-title").value.trim();
+  const date   = document.getElementById("ev-date").value;
+  const vendor = document.getElementById("ev-vendor").value.trim();
+  const normal = parseInt(document.getElementById("price-normal").value) || 0;
+  const large  = parseInt(document.getElementById("price-large").value)  || 0;
+  if (!title || !date) { alert("イベント名と試合日は必須です。"); return; }
+
+  const btn = document.getElementById("create-btn");
+  btn.disabled = true;
+  btn.textContent = pendingImageBase64 ? "保存中（画像あり）…" : "作成中…";
+
+  try {
+    const eventData = {
+      title, date, vendor,
+      menu: { normal, large },
+      createdAt: serverTimestamp()
+    };
+    if (pendingImageBase64) {
+      eventData.menuImage = pendingImageBase64;
+    }
+
+    const newRef = await push(ref(db, "events"), eventData);
+    const eid = newRef.key;
+    saveLastEventId(eid);
+
+    const base = location.origin + location.pathname.replace("admin.html","");
+    document.getElementById("share-url-order").textContent = `${base}index.html?e=${eid}`;
+    document.getElementById("share-url-list").textContent  = `${base}list.html?e=${eid}`;
+    document.getElementById("url-result").style.display = "block";
+    btn.textContent = "✅ 作成しました！";
+    setTimeout(() => { btn.disabled = false; btn.textContent = "✅ 試合を作成してURLを発行"; }, 2000);
+  } catch(e) {
+    alert("作成に失敗しました。");
+    btn.disabled = false; btn.textContent = "✅ 試合を作成してURLを発行";
+  }
+};
+
+window.copyUrl = function(type) {
+  const id = type === "order" ? "share-url-order" : "share-url-list";
+  const url = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(url).then(() => alert("コピーしました！"));
+};
+
+// ========== イベント一覧 ==========
+async function loadEventList() {
+  document.getElementById("event-list-loading").style.display = "block";
+  document.getElementById("event-list").innerHTML = "";
+  try {
+    const snap = await get(ref(db, "events"));
+    document.getElementById("event-list-loading").style.display = "none";
+    if (!snap.exists()) {
+      document.getElementById("event-list").innerHTML = "<p style='color:var(--gray);font-size:13px;'>試合がまだありません。</p>";
+      return;
+    }
+    const events = Object.entries(snap.val()).sort((a,b) => (b[1].date||"").localeCompare(a[1].date||""));
+    document.getElementById("event-list").innerHTML = events.map(([id,ev]) => {
+      const cnt = ev.orders ? Object.keys(ev.orders).length : 0;
+      const imgBadge = ev.menuImage ? "🍱 " : "";
+      return `<div class="event-list-item ${id===selectedEventId?"active":""}" data-eid="${id}" onclick="selectEvent('${id}', event)">
+        <div class="eli-date">${formatDate(ev.date)}</div>
+        <div class="eli-title">${imgBadge}${escHtml(ev.title||"")}</div>
+        <div class="eli-meta">${escHtml(ev.vendor||"")}　／　${cnt}件回答済み</div>
+      </div>`;
+    }).join("");
+  } catch(e) {
+    document.getElementById("event-list-loading").style.display = "none";
+    document.getElementById("event-list").innerHTML = "<p style='color:var(--red);font-size:13px;'>読み込みに失敗しました。</p>";
+  }
+}
+
+window.selectEvent = async function(eid, e) {
+  selectedEventId = eid;
+  document.querySelectorAll(".event-list-item").forEach(el => el.classList.remove("active"));
+  e.currentTarget.classList.add("active");
+  document.getElementById("aggregate-section").style.display = "block";
+  document.getElementById("agg-content").innerHTML = "<div class='loading'><div class='spinner'></div></div>";
+
+  // 注文URLを更新
+  const base = location.origin + location.pathname.replace("admin.html","");
+  document.getElementById("manage-url-order").textContent = `${base}index.html?e=${eid}`;
+  document.getElementById("manage-url-list").textContent  = `${base}list.html?e=${eid}`;
+
+  const snap = await get(ref(db, `events/${eid}`));
+  if (!snap.exists()) return;
+  selectedEvent = snap.val();
+  renderAggregate(selectedEvent);
+};
+
+function renderAggregate(ev) {
+  const menu = ev.menu || {};
+  const orders = ev.orders ? Object.entries(ev.orders) : [];
+  orders.sort((a,b) => (a[1].createdAt||0) - (b[1].createdAt||0));
+  let cntNormal = 0, cntLarge = 0, totalYen = 0;
+  orders.forEach(([,o]) => {
+    ["player","father","mother"].forEach(m => {
+      if (o[m]==="normal") cntNormal++;
+      if (o[m]==="large")  cntLarge++;
+    });
+    totalYen += Number(o.total||0);
+  });
+  document.getElementById("agg-content").innerHTML = `
+    <div class="agg-row"><span class="agg-label">回答家庭数</span><span class="agg-val">${orders.length}家庭</span></div>
+    <div class="agg-row"><span class="agg-label">並　${menu.normal?Number(menu.normal).toLocaleString()+"円":""}</span><span class="agg-val">${cntNormal}個</span></div>
+    <div class="agg-row"><span class="agg-label">大盛　${menu.large?Number(menu.large).toLocaleString()+"円":""}</span><span class="agg-val">${cntLarge}個</span></div>
+    <div class="agg-row"><span class="agg-label">合計個数</span><span class="agg-val">${cntNormal+cntLarge}個</span></div>
+    <div class="agg-total-row"><span>徴収合計</span><span>${totalYen.toLocaleString()}円</span></div>
+    <div style="margin-top:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--gray);letter-spacing:0.1em;margin-bottom:8px;">各家庭の内訳</div>
+      ${orders.map(([,o]) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span>${escHtml(o.playerName)}</span>
+          <span style="font-weight:700">${Number(o.total||0).toLocaleString()}円
+            <span style="font-size:11px;color:var(--gray);font-weight:400;margin-left:4px;">
+              選手:${sizeLabel(o.player)} 父:${sizeLabel(o.father)} 母:${sizeLabel(o.mother)}
+            </span>
+          </span>
+        </div>
+        ${o.extraNote ? `<div style="font-size:11px;color:var(--gray);padding:2px 0 4px;">その他: ${escHtml(o.extraNote)}</div>` : ""}
+      `).join("")}
+    </div>
+  `;
+  buildPrintArea(ev, orders, cntNormal, cntLarge, totalYen);
+}
+
+function buildPrintArea(ev, orders, cntNormal, cntLarge, totalYen) {
+  const menu = ev.menu || {};
+  const rows = orders.map(([,o]) => `<tr>
+    <td>${escHtml(o.playerName)}</td>
+    <td style="text-align:center">${sizeLabel(o.player)}</td>
+    <td style="text-align:center">${sizeLabel(o.father)}</td>
+    <td style="text-align:center">${sizeLabel(o.mother)}</td>
+    <td style="text-align:right">${Number(o.total||0).toLocaleString()}円</td>
+    <td style="font-size:11px;color:#888">${escHtml(o.extraNote||"")}</td>
+  </tr>`).join("");
+  document.getElementById("print-area").innerHTML = `
+    <div class="print-title">弁当注文集計　${escHtml(ev.title||"")}</div>
+    <div class="print-date">${formatDate(ev.date)}　発注先：${escHtml(ev.vendor||"")}　並${menu.normal?Number(menu.normal).toLocaleString()+"円":""}／大盛${menu.large?Number(menu.large).toLocaleString()+"円":""}</div>
+    <table class="print-table">
+      <thead><tr><th>選手名</th><th>選手</th><th>父</th><th>母</th><th>小計</th><th>その他備考</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr class="print-total-row">
+        <td colspan="2">並 ${cntNormal}個　大盛 ${cntLarge}個　計${cntNormal+cntLarge}個</td>
+        <td colspan="4" style="text-align:right;font-size:15px">徴収合計　${totalYen.toLocaleString()}円</td>
+      </tr></tfoot>
+    </table>
+    <div style="margin-top:20px;font-size:11px;color:#888">印刷日時：${new Date().toLocaleString("ja-JP")}</div>
+  `;
+}
+
+window.printPDF = function() {
+  if (!selectedEvent) { alert("試合を選択してください。"); return; }
+  const area = document.getElementById("print-area");
+  area.style.display = "block";
+  const cleanup = () => {
+    area.style.display = "none";
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup);
+  window.print();
+};
+
+window.downloadCSV = function() {
+  if (!selectedEvent) { alert("試合を選択してください。"); return; }
+  const ev = selectedEvent;
+  const orders = ev.orders ? Object.entries(ev.orders) : [];
+  orders.sort((a,b) => (a[1].createdAt||0) - (b[1].createdAt||0));
+
+  const header = ["選手名", "選手分弁当", "父分弁当", "母分弁当", "その他", "合計額"];
+  const rows = orders.map(([,o]) => [
+    o.playerName || "",
+    sizeLabel(o.player || "none"),
+    sizeLabel(o.father || "none"),
+    sizeLabel(o.mother || "none"),
+    o.extraNote || "",
+    o.total || 0
+  ]);
+
+  const csvContent = [header, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\r\n");
+
+  // BOM付きUTF-8でExcelでも文字化けしない
+  const bom = "\uFEFF";
+  const blob = new Blob([bom + csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const filename = `弁当注文_${(ev.date || "").replace(/-/g,"")}_${(ev.title || "").replace(/[\\/:*?"<>|]/g,"")}.csv`;
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+window.openList = function() {
+  if (!selectedEventId) return;
+  const base = location.origin + location.pathname.replace("admin.html","");
+  window.open(`${base}list.html?e=${selectedEventId}`, "_blank");
+};
+
+window.copyManageUrl = function(type) {
+  const id = type === "order" ? "manage-url-order" : "manage-url-list";
+  const url = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(url).then(() => alert("コピーしました！"));
+};
+
+window.openManageUrl = function(type) {
+  const id = type === "order" ? "manage-url-order" : "manage-url-list";
+  const url = document.getElementById(id).textContent;
+  if (url) window.open(url, "_blank");
+};
+
+window.deleteEvent = async function() {
+  if (!selectedEventId || !selectedEvent) return;
+  const title = selectedEvent.title || "この試合";
+  if (!confirm(`「${title}」の注文データを含むすべての情報を削除します。\nこの操作は取り消せません。よろしいですか？`)) return;
+  try {
+    await remove(ref(db, `events/${selectedEventId}`));
+    selectedEventId = null;
+    selectedEvent = null;
+    document.getElementById("aggregate-section").style.display = "none";
+    alert("削除しました。");
+    loadEventList();
+  } catch(e) {
+    alert("削除に失敗しました。");
+  }
+};
+
+function escHtml(str) {
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>

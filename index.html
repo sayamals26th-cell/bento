@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>弁当注文</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+:root {
+  --navy: #1b2a4a;
+  --navy2: #243660;
+  --gold: #d4900a;
+  --gold-lt: #f5c040;
+  --cream: #faf7f2;
+  --white: #ffffff;
+  --border: #dde4ee;
+  --gray: #8899aa;
+  --green: #1e8a50;
+  --red: #c0392b;
+  --text: #1e2a3a;
+  --shadow: 0 2px 12px rgba(27,42,74,0.10);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans JP', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; padding-bottom: 48px; }
+
+.header { background: var(--navy); color: var(--white); padding: 18px 18px 14px; position: relative; overflow: hidden; }
+.header::after { content: '⚾'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 48px; opacity: 0.12; }
+.header-badge { display: inline-block; background: var(--gold); color: var(--navy); font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 20px; letter-spacing: 0.08em; margin-bottom: 8px; }
+.header h1 { font-size: 20px; font-weight: 900; }
+.event-box { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 14px; margin-top: 10px; display: none; }
+.event-date { font-size: 16px; font-weight: 700; color: var(--gold-lt); }
+.event-meta { font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+.header-list-link { display: none; text-align: center; background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); font-size: 12px; font-weight: 700; padding: 8px; margin-top: 10px; border-radius: 6px; text-decoration: none; border: 1px solid rgba(255,255,255,0.2); }
+
+.menu-section { padding: 18px 16px 8px; }
+.section-title { font-size: 11px; font-weight: 700; color: var(--gray); letter-spacing: 0.12em; margin-bottom: 10px; }
+/* 弁当画像 */
+.menu-image-wrap { border-radius: 12px; overflow: hidden; margin-bottom: 12px; box-shadow: var(--shadow); position: relative; }
+.menu-image-wrap img { width: 100%; max-height: 260px; object-fit: contain; background: #f0f0f0; display: block; }
+.menu-image-label { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(27,42,74,0.75)); color: #fff; padding: 16px 14px 10px; font-size: 13px; font-weight: 700; }
+/* 価格カード */
+.menu-cards { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; }
+.menu-cards::-webkit-scrollbar { display: none; }
+.menu-card { flex: 0 0 auto; background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 110px; box-shadow: var(--shadow); }
+.menu-card-size { font-size: 10px; font-weight: 700; color: var(--gray); letter-spacing: 0.1em; margin-bottom: 4px; }
+.menu-card-price { font-size: 22px; font-weight: 900; color: var(--navy); }
+.menu-card-price span { font-size: 13px; font-weight: 500; }
+
+.form-section { padding: 8px 16px; }
+.form-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 18px 16px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.form-card-title { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+.form-row { margin-bottom: 14px; }
+.form-row:last-child { margin-bottom: 0; }
+label { display: block; font-size: 12px; font-weight: 700; color: var(--gray); letter-spacing: 0.06em; margin-bottom: 6px; }
+input[type="text"], textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 11px 12px; font-size: 16px; font-family: 'Noto Sans JP', sans-serif; color: var(--text); background: var(--cream); outline: none; transition: border-color 0.2s; }
+input[type="text"]:focus, textarea:focus { border-color: var(--navy); background: var(--white); }
+textarea { resize: vertical; min-height: 72px; font-size: 14px; }
+
+.size-buttons { display: flex; gap: 8px; }
+.size-btn { flex: 1; padding: 11px 4px; border: 2px solid var(--border); border-radius: 8px; background: var(--white); font-family: 'Noto Sans JP', sans-serif; font-size: 14px; font-weight: 700; color: var(--gray); cursor: pointer; transition: all 0.15s; text-align: center; line-height: 1.3; }
+.size-btn .btn-price { display: block; font-size: 11px; font-weight: 500; margin-top: 2px; }
+.size-btn.sel-normal { border-color: var(--navy); background: var(--navy); color: var(--white); }
+.size-btn.sel-large { border-color: var(--gold); background: var(--gold); color: var(--white); }
+.size-btn.sel-none { border-color: #aaa; background: #f0f4f8; color: #aaa; }
+
+.total-bar { background: var(--navy); color: var(--white); border-radius: 10px; padding: 14px 18px; margin: 4px 16px 16px; display: flex; justify-content: space-between; align-items: center; }
+.total-label { font-size: 13px; opacity: 0.8; }
+.total-amount { font-size: 26px; font-weight: 900; color: var(--gold-lt); }
+.total-amount span { font-size: 14px; font-weight: 500; }
+
+.submit-wrap { padding: 0 16px; }
+.submit-btn { width: 100%; padding: 16px; background: var(--green); color: var(--white); border: none; border-radius: 10px; font-family: 'Noto Sans JP', sans-serif; font-size: 17px; font-weight: 700; cursor: pointer; letter-spacing: 0.04em; transition: opacity 0.2s; }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.footer { margin-top: 28px; padding: 16px; border-top: 1px solid var(--border); text-align: center; }
+.footer-list-link { display: inline-block; color: var(--navy); font-size: 13px; font-weight: 700; text-decoration: none; padding: 10px 24px; border: 2px solid var(--navy); border-radius: 8px; }
+
+#done-screen { display: none; padding: 48px 24px; text-align: center; }
+.done-icon { font-size: 64px; margin-bottom: 16px; }
+.done-title { font-size: 22px; font-weight: 900; color: var(--navy); margin-bottom: 6px; }
+.done-name { font-size: 15px; color: var(--gray); margin-bottom: 16px; }
+.done-total { font-size: 36px; font-weight: 900; color: var(--green); margin-bottom: 4px; }
+.done-total span { font-size: 16px; font-weight: 500; }
+.done-note { font-size: 12px; color: var(--gray); margin-bottom: 28px; }
+.done-btn { display: block; padding: 13px; border-radius: 8px; font-family: 'Noto Sans JP', sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; text-align: center; cursor: pointer; border: none; margin-bottom: 10px; }
+.done-btn-p { background: var(--navy); color: var(--white); }
+.done-btn-s { background: var(--white); color: var(--navy); border: 2px solid var(--navy) !important; }
+
+.loading { text-align: center; padding: 60px 20px; color: var(--gray); }
+.spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--navy); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-box { background: #fff0f0; border: 1px solid #ffcccc; border-radius: 8px; padding: 16px; margin: 20px 16px; color: var(--red); font-size: 14px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="header" id="header">
+  <span class="header-badge">⚾ 弁当注文</span>
+  <h1 id="header-title">読み込み中…</h1>
+  <div class="event-box" id="event-box">
+    <div class="event-date" id="event-date"></div>
+    <div class="event-meta" id="event-vendor"></div>
+  </div>
+  <a href="#" class="header-list-link" id="header-list-link">📋 注文一覧を確認する →</a>
+</div>
+
+<div id="main-content">
+  <div class="loading"><div class="spinner"></div>読み込み中…</div>
+</div>
+
+<div id="done-screen">
+  <div class="done-icon">✅</div>
+  <div class="done-title">注文を送信しました！</div>
+  <div class="done-name" id="done-name"></div>
+  <div class="done-total" id="done-total"></div>
+  <div class="done-note">※兄弟等の料金は別途ご確認ください</div>
+  <a href="#" class="done-btn done-btn-p" id="done-list-link">📋 注文一覧を確認する</a>
+  <button class="done-btn done-btn-s" onclick="location.reload()">↩ 別の方の注文を追加する</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, get, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ★ Firebase設定（common.jsと同じ値）
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB12L3oAwAzfb252QW1DlQBHg1XFSBFOpA",
+  authDomain: "baseball-luch.firebaseapp.com",
+  databaseURL: "https://baseball-luch-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "baseball-luch",
+  storageBucket: "baseball-luch.firebasestorage.app",
+  messagingSenderId: "1043312857891",
+  appId: "1:1043312857891:web:e4bf231fc8b14808d77296"
+};
+function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const week = ["日","月","火","水","木","金","土"];
+  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${week[d.getDay()]}）`;
+}
+function calcOrderTotal(sel, menu) {
+  let t = 0;
+  ["player","father","mother"].forEach(m => { if (sel[m] && sel[m] !== "none" && menu[sel[m]]) t += Number(menu[sel[m]]); });
+  return t;
+}
+function getLastEventId() { return localStorage.getItem("bento_last_event"); }
+
+const app = initializeApp(FIREBASE_CONFIG);
+const db = getDatabase(app);
+
+const params = new URLSearchParams(location.search);
+let eventId = params.get("e") || getLastEventId();
+let currentEvent = null;
+let selections = { player: "none", father: "none", mother: "none" };
+
+async function init() {
+  if (!eventId) { showError("URLが正しくありません。幹事から共有されたURLをご利用ください。"); return; }
+  try {
+    const snap = await get(ref(db, `events/${eventId}`));
+    if (!snap.exists()) { showError("イベントが見つかりません。"); return; }
+    currentEvent = snap.val();
+    renderForm(currentEvent);
+  } catch(e) {
+    showError("データの読み込みに失敗しました。");
+  }
+}
+
+function renderForm(ev) {
+  document.getElementById("header-title").textContent = ev.title || "弁当注文";
+  if (ev.date) {
+    document.getElementById("event-date").textContent = formatDate(ev.date);
+    document.getElementById("event-vendor").textContent = `発注先：${ev.vendor || "未設定"}`;
+    document.getElementById("event-box").style.display = "block";
+  }
+  const listUrl = `list.html?e=${eventId}`;
+  const hll = document.getElementById("header-list-link");
+  hll.href = listUrl; hll.style.display = "block";
+  document.getElementById("done-list-link").href = listUrl;
+
+  const menu = ev.menu || {};
+  document.getElementById("main-content").innerHTML = `
+    <div class="menu-section">
+      <div class="section-title">TODAY'S MENU</div>
+      ${ev.menuImage ? `
+      <div class="menu-image-wrap">
+        <img src="${ev.menuImage}" alt="弁当画像">
+        <div class="menu-image-label">${escHtml(ev.vendor || "本日のお弁当")}</div>
+      </div>` : ""}
+    </div>
+    <div class="form-section">
+      <div class="form-card">
+        <div class="form-card-title">👤 お名前</div>
+        <div class="form-row">
+          <label>選手のお名前（フルネーム）</label>
+          <input type="text" id="player-name" placeholder="例：山田 太郎">
+        </div>
+      </div>
+      ${memberCard("player","⚾ 選手分", menu)}
+      ${memberCard("father","👨 父分", menu)}
+      ${memberCard("mother","👩 母分", menu)}
+      <div class="form-card">
+        <div class="form-card-title">📝 その他（兄弟等）</div>
+        <div class="form-row">
+          <label>希望があれば記載（任意）</label>
+          <textarea id="extra-note" placeholder="例：兄 並×1、妹 並×1"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="total-bar">
+      <span class="total-label">選手・父・母 合計</span>
+      <span class="total-amount" id="total-display">0<span>円</span></span>
+    </div>
+    <div class="submit-wrap">
+      <button class="submit-btn" id="submit-btn">注文を送信する</button>
+    </div>
+    <div class="footer">
+      <a href="${listUrl}" class="footer-list-link">📋 全員の注文一覧を確認する</a>
+    </div>
+  `;
+
+  // ボタンイベント
+  document.querySelectorAll(".size-buttons").forEach(group => {
+    group.querySelectorAll(".size-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const member = group.dataset.member;
+        selections[member] = btn.dataset.size;
+        group.querySelectorAll(".size-btn").forEach(b => b.className = "size-btn");
+        btn.classList.add(`sel-${btn.dataset.size}`);
+        updateTotal(menu);
+      });
+    });
+  });
+
+  document.getElementById("submit-btn").addEventListener("click", submitOrder);
+}
+
+function memberCard(member, title, menu) {
+  const items = [
+    {size:"normal", label:"並",   price: menu.normal ? Number(menu.normal).toLocaleString()+"円" : ""},
+    ...(menu.large ? [{size:"large", label:"大盛", price: Number(menu.large).toLocaleString()+"円"}] : []),
+    {size:"none",   label:"不要", price: ""},
+  ];
+  const btns = items.map(b => `<button class="size-btn" data-size="${b.size}">
+    ${b.label}${b.price ? `<span class="btn-price">${b.price}</span>` : ""}
+  </button>`).join("");
+  return `<div class="form-card">
+    <div class="form-card-title">${title}</div>
+    <div class="form-row">
+      <label>サイズを選択</label>
+      <div class="size-buttons" data-member="${member}">${btns}</div>
+    </div>
+  </div>`;
+}
+
+function updateTotal(menu) {
+  const t = calcOrderTotal(selections, menu);
+  const el = document.getElementById("total-display");
+  if (el) el.innerHTML = `${t.toLocaleString()}<span>円</span>`;
+}
+
+async function submitOrder() {
+  const name = document.getElementById("player-name")?.value.trim();
+  if (!name) { alert("選手のお名前を入力してください。"); return; }
+  const btn = document.getElementById("submit-btn");
+  btn.disabled = true; btn.textContent = "送信中…";
+  const order = {
+    playerName: name,
+    player: selections.player,
+    father: selections.father,
+    mother: selections.mother,
+    extraNote: document.getElementById("extra-note")?.value.trim() || "",
+    total: calcOrderTotal(selections, currentEvent.menu || {}),
+    createdAt: serverTimestamp()
+  };
+  try {
+    await push(ref(db, `events/${eventId}/orders`), order);
+    document.getElementById("main-content").style.display = "none";
+    document.getElementById("header").style.display = "none";
+    document.getElementById("done-screen").style.display = "block";
+    document.getElementById("done-name").textContent = `${name} さんのご注文`;
+    document.getElementById("done-total").innerHTML = `${order.total.toLocaleString()}<span>円</span>`;
+  } catch(e) {
+    alert("送信に失敗しました。通信状況を確認して再度お試しください。");
+    btn.disabled = false; btn.textContent = "注文を送信する";
+  }
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function showError(msg) {
+  document.getElementById("main-content").innerHTML = `<div class="error-box">⚠️ ${msg}</div>`;
+}
+
+init();
+</script>
+</body>
+</html>
