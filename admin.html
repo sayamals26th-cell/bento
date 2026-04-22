@@ -227,6 +227,40 @@ body { font-family: 'Noto Sans JP', sans-serif; background: var(--cream); color:
   </div>
 </div>
 
+<!-- 注文編集モーダル -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="font-size:16px;font-weight:900;color:var(--navy);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border);">✏️ 注文を編集</div>
+    <div class="form-row"><label>選手名</label><input type="text" id="edit-name"></div>
+    <div class="form-row"><label>選手分</label>
+      <select id="edit-player" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px;font-size:15px;font-family:'Noto Sans JP',sans-serif;background:var(--cream);outline:none;">
+        <option value="normal">並</option>
+        <option value="large">大盛</option>
+        <option value="none">不要</option>
+      </select>
+    </div>
+    <div class="form-row"><label>父分</label>
+      <select id="edit-father" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px;font-size:15px;font-family:'Noto Sans JP',sans-serif;background:var(--cream);outline:none;">
+        <option value="normal">並</option>
+        <option value="large">大盛</option>
+        <option value="none">不要</option>
+      </select>
+    </div>
+    <div class="form-row"><label>母分</label>
+      <select id="edit-mother" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px;font-size:15px;font-family:'Noto Sans JP',sans-serif;background:var(--cream);outline:none;">
+        <option value="normal">並</option>
+        <option value="large">大盛</option>
+        <option value="none">不要</option>
+      </select>
+    </div>
+    <div class="form-row"><label>その他備考</label><input type="text" id="edit-extra" placeholder="兄 並×1 など"></div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn btn-primary" style="margin-bottom:0" onclick="saveEditOrder()">保存</button>
+      <button class="btn btn-outline" style="margin-bottom:0" onclick="closeEditModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <div id="print-area"></div>
 
 <script type="module">
@@ -475,16 +509,21 @@ function renderAggregate(ev) {
     <div class="agg-total-row"><span>徴収合計</span><span>${totalYen.toLocaleString()}円</span></div>
     <div style="margin-top:14px">
       <div style="font-size:11px;font-weight:700;color:var(--gray);letter-spacing:0.1em;margin-bottom:8px;">各家庭の内訳</div>
-      ${orders.map(([,o]) => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
-          <span>${escHtml(o.playerName)}</span>
-          <span style="font-weight:700">${Number(o.total||0).toLocaleString()}円
-            <span style="font-size:11px;color:var(--gray);font-weight:400;margin-left:4px;">
-              選手:${sizeLabel(o.player)} 父:${sizeLabel(o.father)} 母:${sizeLabel(o.mother)}
-            </span>
-          </span>
+      ${orders.map(([oid, o]) => `
+        <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+            <span style="font-weight:700">${escHtml(o.playerName)}</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-weight:700">${Number(o.total||0).toLocaleString()}円</span>
+              <button onclick="openEditModal('${oid}')" style="background:var(--navy);color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;">編集</button>
+              <button onclick="deleteOrder('${oid}')" style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;">削除</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--gray);margin-top:3px;">
+            選手:${sizeLabel(o.player)} 父:${sizeLabel(o.father)} 母:${sizeLabel(o.mother)}
+          </div>
+          ${o.extraNote ? `<div style="font-size:11px;color:var(--gray);">その他: ${escHtml(o.extraNote)}</div>` : ""}
         </div>
-        ${o.extraNote ? `<div style="font-size:11px;color:var(--gray);padding:2px 0 4px;">その他: ${escHtml(o.extraNote)}</div>` : ""}
       `).join("")}
     </div>
   `;
@@ -588,6 +627,82 @@ window.deleteEvent = async function() {
     document.getElementById("aggregate-section").style.display = "none";
     alert("削除しました。");
     loadEventList();
+  } catch(e) {
+    alert("削除に失敗しました。");
+  }
+};
+
+// ========== 注文 編集・削除 ==========
+let editingOrderId = null;
+
+window.openEditModal = function(oid) {
+  if (!selectedEvent?.orders?.[oid]) return;
+  editingOrderId = oid;
+  const o = selectedEvent.orders[oid];
+  document.getElementById("edit-name").value   = o.playerName || "";
+  document.getElementById("edit-player").value = o.player || "none";
+  document.getElementById("edit-father").value = o.father || "none";
+  document.getElementById("edit-mother").value = o.mother || "none";
+  document.getElementById("edit-extra").value  = o.extraNote || "";
+
+  // 大盛が使えない場合は選択肢を削除
+  const menu = selectedEvent.menu || {};
+  ["edit-player","edit-father","edit-mother"].forEach(id => {
+    const sel = document.getElementById(id);
+    const largeOpt = sel.querySelector('option[value="large"]');
+    if (!menu.large && largeOpt) largeOpt.remove();
+    else if (menu.large && !largeOpt) {
+      const opt = document.createElement("option");
+      opt.value = "large"; opt.textContent = "大盛";
+      sel.insertBefore(opt, sel.querySelector('option[value="none"]'));
+    }
+  });
+
+  const modal = document.getElementById("edit-modal");
+  modal.style.display = "flex";
+};
+
+window.closeEditModal = function() {
+  document.getElementById("edit-modal").style.display = "none";
+  editingOrderId = null;
+};
+
+window.saveEditOrder = async function() {
+  if (!editingOrderId || !selectedEventId) return;
+  const name   = document.getElementById("edit-name").value.trim();
+  if (!name) { alert("選手名を入力してください。"); return; }
+  const player = document.getElementById("edit-player").value;
+  const father = document.getElementById("edit-father").value;
+  const mother = document.getElementById("edit-mother").value;
+  const extra  = document.getElementById("edit-extra").value.trim();
+  const menu   = selectedEvent.menu || {};
+
+  // 合計再計算
+  let total = 0;
+  [player, father, mother].forEach(s => { if (s !== "none" && menu[s]) total += Number(menu[s]); });
+
+  try {
+    const { update } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    await update(ref(db, `events/${selectedEventId}/orders/${editingOrderId}`), {
+      playerName: name, player, father, mother, extraNote: extra, total
+    });
+    // ローカルのselectedEventも更新して再描画
+    selectedEvent.orders[editingOrderId] = { ...selectedEvent.orders[editingOrderId], playerName: name, player, father, mother, extraNote: extra, total };
+    closeEditModal();
+    renderAggregate(selectedEvent);
+  } catch(e) {
+    alert("保存に失敗しました。");
+  }
+};
+
+window.deleteOrder = async function(oid) {
+  if (!selectedEventId || !selectedEvent?.orders?.[oid]) return;
+  const name = selectedEvent.orders[oid].playerName || "この注文";
+  if (!confirm(`「${name}」の注文を削除しますか？`)) return;
+  try {
+    await remove(ref(db, `events/${selectedEventId}/orders/${oid}`));
+    delete selectedEvent.orders[oid];
+    renderAggregate(selectedEvent);
   } catch(e) {
     alert("削除に失敗しました。");
   }
