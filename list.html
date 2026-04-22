@@ -72,7 +72,7 @@ body { font-family: 'Noto Sans JP', sans-serif; background: var(--cream); color:
     <div class="event-date" id="event-date"></div>
     <div class="event-meta" id="event-vendor"></div>
   </div>
-  <a href="#" class="header-order-link" id="header-order-link">✏️ 注文・変更はこちら →</a>
+  <div id="header-order-link" style="display:none;text-align:center;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);font-size:12px;padding:8px;margin-top:10px;border-radius:6px;">注文内容の変更・修正は長谷川に連絡してください</div>
 </div>
 
 <div id="main-content">
@@ -113,7 +113,7 @@ async function init() {
 
   const orderUrl = `index.html?e=${eventId}`;
   const hol = document.getElementById("header-order-link");
-  hol.href = orderUrl; hol.style.display = "block";
+  hol.style.display = "block";
 
   // リアルタイム監視
   onValue(ref(db, `events/${eventId}`), snap => {
@@ -210,7 +210,7 @@ function render(ev, eid) {
       ${ordersHTML}
     </div>
     <div class="footer">
-      <a href="${orderUrl}" class="footer-order-link">✏️ 注文・変更はこちら</a>
+      <p style="font-size:13px;color:var(--gray);text-align:center;padding:8px 0;">注文内容の変更・修正は長谷川に連絡してください</p>
     </div>
   `;
 }
