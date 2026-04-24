@@ -151,6 +151,11 @@ body { font-family: 'Noto Sans JP', sans-serif; background: var(--cream); color:
         <div class="form-row"><label>並 価格（円）</label><input type="number" id="price-normal" placeholder="600" min="0"></div>
         <div class="form-row"><label>大盛 価格（円）</label><input type="number" id="price-large" placeholder="750" min="0"></div>
       </div>
+      <div class="form-row">
+        <label>受付締切日時（JST・任意）</label>
+        <input type="datetime-local" id="ev-deadline" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:15px;font-family:'Noto Sans JP',sans-serif;color:var(--text);outline:none;background:var(--cream);">
+        <div style="font-size:11px;color:var(--gray);margin-top:4px;">設定すると締切後は注文フォームが自動で閉じます</div>
+      </div>
 
       <!-- 画像アップロード -->
       <div class="form-row">
@@ -196,6 +201,18 @@ body { font-family: 'Noto Sans JP', sans-serif; background: var(--cream); color:
       <div class="card">
         <div class="card-title">📊 集計</div>
         <div id="agg-content"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🕐 受付締切設定</div>
+        <div class="form-row">
+          <label>締切日時（JST）</label>
+          <input type="datetime-local" id="manage-deadline" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:15px;font-family:'Noto Sans JP',sans-serif;color:var(--text);outline:none;background:var(--cream);">
+          <div style="font-size:11px;color:var(--gray);margin-top:4px;">空欄にして保存すると締切なし（常時受付）になります</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-navy" style="margin-bottom:0" onclick="saveDeadline()">保存</button>
+          <button class="btn btn-outline" style="margin-bottom:0" onclick="clearDeadline()">締切を解除</button>
+        </div>
       </div>
       <div class="card">
         <div class="card-title">🔗 注文URL</div>
@@ -280,7 +297,7 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "1043312857891",
   appId: "1:1043312857891:web:e4bf231fc8b14808d77296"
 };
-const ADMIN_PASSWORD = "sayama26"; // ← ★ここを自分のパスワードに変更★
+const ADMIN_PASSWORD = "sayama26";
 
 // ======================================================
 // 共通ユーティリティ
@@ -393,6 +410,7 @@ window.resetForm = function() {
   document.getElementById("ev-vendor").value = "";
   document.getElementById("price-normal").value = "";
   document.getElementById("price-large").value = "";
+  document.getElementById("ev-deadline").value = "";
   clearImage({ stopPropagation: () => {} });
   document.getElementById("url-result").style.display = "none";
   document.getElementById("create-btn").disabled = false;
@@ -402,10 +420,11 @@ window.resetForm = function() {
 // ========== イベント作成 ==========
 window.createBentoEvent = async function() {
   const title  = document.getElementById("ev-title").value.trim();
-  const date   = document.getElementById("ev-date").value;
-  const vendor = document.getElementById("ev-vendor").value.trim();
-  const normal = parseInt(document.getElementById("price-normal").value) || 0;
-  const large  = parseInt(document.getElementById("price-large").value)  || 0;
+  const date     = document.getElementById("ev-date").value;
+  const vendor   = document.getElementById("ev-vendor").value.trim();
+  const normal   = parseInt(document.getElementById("price-normal").value) || 0;
+  const large    = parseInt(document.getElementById("price-large").value)  || 0;
+  const deadlineInput = document.getElementById("ev-deadline").value;
   if (!title || !date) { alert("イベント名と試合日は必須です。"); return; }
 
   const btn = document.getElementById("create-btn");
@@ -418,8 +437,11 @@ window.createBentoEvent = async function() {
       menu: { normal, large },
       createdAt: serverTimestamp()
     };
-    if (pendingImageBase64) {
-      eventData.menuImage = pendingImageBase64;
+    if (pendingImageBase64) eventData.menuImage = pendingImageBase64;
+    // 締切日時をUTCのUnixミリ秒で保存（datetime-localはJSTで入力されるので-9h）
+    if (deadlineInput) {
+      const jstDate = new Date(deadlineInput); // ローカル（JST）として解釈される
+      eventData.deadline = jstDate.getTime();
     }
 
     const newRef = await push(ref(db, "events"), eventData);
@@ -486,6 +508,18 @@ window.selectEvent = async function(eid, e) {
   const snap = await get(ref(db, `events/${eid}`));
   if (!snap.exists()) return;
   selectedEvent = snap.val();
+
+  // 締切日時をフォームに反映（UNIXミリ秒→datetime-local形式）
+  const dlInput = document.getElementById("manage-deadline");
+  if (selectedEvent.deadline) {
+    const d = new Date(selectedEvent.deadline);
+    // datetime-local はローカル時刻（JST）で表示される
+    const pad = n => String(n).padStart(2,"0");
+    dlInput.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else {
+    dlInput.value = "";
+  }
+
   renderAggregate(selectedEvent);
 };
 
@@ -602,6 +636,40 @@ window.openList = function() {
   if (!selectedEventId) return;
   const base = location.origin + location.pathname.replace("admin.html","");
   window.open(`${base}list.html?e=${selectedEventId}`, "_blank");
+};
+
+window.saveDeadline = async function() {
+  if (!selectedEventId) return;
+  const val = document.getElementById("manage-deadline").value;
+  try {
+    const { update } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    if (val) {
+      const deadline = new Date(val).getTime();
+      await update(ref(db, `events/${selectedEventId}`), { deadline });
+      selectedEvent.deadline = deadline;
+      alert("締切日時を保存しました。");
+    } else {
+      await update(ref(db, `events/${selectedEventId}`), { deadline: null });
+      delete selectedEvent.deadline;
+      alert("締切を解除しました。");
+    }
+  } catch(e) {
+    alert("保存に失敗しました。");
+  }
+};
+
+window.clearDeadline = async function() {
+  if (!selectedEventId) return;
+  if (!confirm("締切設定を解除して常時受付に戻しますか？")) return;
+  try {
+    const { update } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    await update(ref(db, `events/${selectedEventId}`), { deadline: null });
+    delete selectedEvent.deadline;
+    document.getElementById("manage-deadline").value = "";
+    alert("締切を解除しました。");
+  } catch(e) {
+    alert("解除に失敗しました。");
+  }
 };
 
 window.copyManageUrl = function(type) {

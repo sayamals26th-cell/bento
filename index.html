@@ -172,6 +172,34 @@ function renderForm(ev) {
     document.getElementById("event-vendor").textContent = `発注先：${ev.vendor || "未設定"}`;
     document.getElementById("event-box").style.display = "block";
   }
+
+  // 締切チェック
+  if (ev.deadline && Date.now() > ev.deadline) {
+    const hll = document.getElementById("header-list-link");
+    hll.href = `list.html?e=${eventId}`;
+    hll.style.display = "block";
+    document.getElementById("main-content").innerHTML = `
+      <div style="margin:16px;background:#fff3cd;border:1.5px solid #f0c040;border-radius:10px;padding:18px 16px;">
+        <div style="font-size:16px;font-weight:900;color:#856404;margin-bottom:6px;">🔒 受付を締め切っています</div>
+        <div style="font-size:14px;color:#856404;">変更等は長谷川までご連絡ください</div>
+      </div>
+      <div class="footer">
+        <a href="list.html?e=${eventId}" class="footer-list-link">📋 注文一覧を確認する</a>
+      </div>
+    `;
+    // 二重通知防止：イベントIDごとに通知済みフラグをlocalStorageで管理
+    const notifiedKey = `bento_notified_${eventId}`;
+    if (!localStorage.getItem(notifiedKey)) {
+      fetch("https://discord.com/api/webhooks/1496850459464302644/mO771tNywnVk-rAt7lj3ko8QPANKxarL92Z4XqWJxSoJuIe_ZtWm0oYMW332fNH9TWp2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: `🔒 **${ev.title || "弁当注文"}** の受付を締め切りました` })
+      }).then(() => {
+        localStorage.setItem(notifiedKey, "1");
+      }).catch(() => {});
+    }
+    return;
+  }
   const listUrl = `list.html?e=${eventId}`;
   const hll = document.getElementById("header-list-link");
   hll.href = listUrl; hll.style.display = "block";
@@ -279,10 +307,37 @@ async function submitOrder() {
     document.getElementById("done-screen").style.display = "block";
     document.getElementById("done-name").textContent = `${name} さんのご注文`;
     document.getElementById("done-total").innerHTML = `${order.total.toLocaleString()}<span>円</span>`;
+    // Discord通知（失敗しても注文自体は成功扱い）
+    notifyDiscord(order, currentEvent).catch(() => {});
   } catch(e) {
     alert("送信に失敗しました。通信状況を確認して再度お試しください。");
     btn.disabled = false; btn.textContent = "注文を送信する";
   }
+}
+
+// ★ Discord Webhook URL（ここを自分のURLに書き換える）
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1496850459464302644/mO771tNywnVk-rAt7lj3ko8QPANKxarL92Z4XqWJxSoJuIe_ZtWm0oYMW332fNH9TWp2";
+
+async function notifyDiscord(order, event) {
+  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL === "YOUR_DISCORD_WEBHOOK_URL") return;
+  const sl = s => ({ normal:"並", large:"大盛", none:"不要" }[s] || s);
+  const lines = [
+    `📋 **${event.title || "弁当注文"}** に注文が届きました`,
+    ``,
+    `👤 **${order.playerName}**`,
+    `⚾ 選手：${sl(order.player)}`,
+    `👨 父：${sl(order.father)}`,
+    `👩 母：${sl(order.mother)}`,
+    order.extraNote ? `📝 その他：${order.extraNote}` : null,
+    ``,
+    `💰 合計：**${Number(order.total).toLocaleString()}円**`,
+  ].filter(l => l !== null).join("\n");
+
+  await fetch(DISCORD_WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: lines })
+  });
 }
 
 function escHtml(str) {
